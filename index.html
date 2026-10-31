@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="theme-color" content="#14061f">
+<title>Trick-or-Treat Tally</title>
+<style>
+  :root {
+    --bg1: #14061f; --bg2: #2a0d3d;
+    --orange: #ff7a00; --orange-dark: #c25400;
+    --text: #fff3e0; --muted: #b79ccf;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: radial-gradient(ellipse at 50% 0%, var(--bg2), var(--bg1) 70%);
+    color: var(--text);
+    font-family: "Chalkboard SE", "Comic Sans MS", system-ui, sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
+    overflow: hidden; user-select: none;
+  }
+  .moon {
+    position: fixed; top: 24px; right: 24px; width: 70px; height: 70px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fffbe6, #f3e7a5 60%, #d9c97a);
+    box-shadow: 0 0 40px 8px rgba(255, 244, 170, .35); opacity: .9; z-index: 0;
+  }
+  header, main, footer { position: relative; z-index: 1; text-align: center; }
+  h1 { margin: 0; font-size: clamp(1.4rem, 6vw, 2rem); letter-spacing: .5px; }
+  .sub { color: var(--muted); font-size: .95rem; margin-top: 4px; }
+
+  .pumpkin {
+    position: relative; width: min(78vw, 320px); aspect-ratio: 1.1;
+    margin: 0 auto; display: grid; place-items: center;
+    background: radial-gradient(ellipse at 40% 35%, #ffa133, var(--orange) 55%, var(--orange-dark));
+    border-radius: 50% 50% 48% 48% / 55% 55% 45% 45%;
+    box-shadow: inset -14px -10px 30px rgba(0,0,0,.25), 0 0 60px rgba(255,122,0,.35);
+  }
+  .pumpkin::before, .pumpkin::after { /* ribs */
+    content: ""; position: absolute; top: 6%; bottom: 6%; width: 28%;
+    border-left: 3px solid rgba(120,40,0,.25); border-radius: 50%;
+  }
+  .pumpkin::before { left: 22%; }
+  .pumpkin::after { right: 22%; transform: scaleX(-1); }
+  .stem {
+    position: absolute; top: -26px; left: 50%; width: 26px; height: 38px; transform: translateX(-50%) rotate(6deg);
+    background: linear-gradient(#5a7a1f, #3b5212); border-radius: 6px 6px 3px 3px;
+  }
+  .count {
+    font-size: clamp(5rem, 28vw, 9rem); font-weight: 800; line-height: 1;
+    color: #2a0d00; text-shadow: 0 0 18px rgba(255, 230, 150, .9), 0 2px 0 rgba(255,255,255,.2);
+    z-index: 2;
+  }
+  .count.pop { animation: pop .28s ease-out; }
+  @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.25) rotate(-3deg); } 100% { transform: scale(1); } }
+  .label { margin-top: 18px; font-size: 1.1rem; color: var(--muted); min-height: 1.5em; }
+
+  .buttons { display: flex; gap: 14px; width: min(92vw, 420px); }
+  button {
+    font: inherit; border: 0; border-radius: 22px; cursor: pointer; color: var(--text);
+    transition: transform .08s;
+  }
+  button:active { transform: scale(.95); }
+  #plus {
+    flex: 1; padding: 26px 0; font-size: 2.4rem; font-weight: 800; color: #2a0d00;
+    background: linear-gradient(#ffb04d, var(--orange)); box-shadow: 0 6px 0 var(--orange-dark), 0 10px 30px rgba(255,122,0,.4);
+  }
+  #minus {
+    width: 96px; font-size: 2rem; font-weight: 800;
+    background: #3a1b52; box-shadow: 0 6px 0 #22102f;
+  }
+  #reset { background: none; color: var(--muted); font-size: .85rem; padding: 10px; margin-top: 12px; text-decoration: underline; }
+
+  .float { position: fixed; font-size: 2rem; pointer-events: none; z-index: 5; animation: rise 1.1s ease-out forwards; }
+  @keyframes rise { to { transform: translateY(-160px) rotate(25deg); opacity: 0; } }
+</style>
+</head>
+<body>
+  <div class="moon"></div>
+
+  <header>
+    <h1>🎃 Trick-or-Treat Tally 🎃</h1>
+    <div class="sub">Little goblins at the door</div>
+  </header>
+
+  <main>
+    <div class="pumpkin">
+      <div class="stem"></div>
+      <div class="count" id="count">0</div>
+    </div>
+    <div class="label" id="label"></div>
+  </main>
+
+  <footer>
+    <div class="buttons">
+      <button id="minus" aria-label="Subtract one">−1</button>
+      <button id="plus" aria-label="Add one">+1 👻</button>
+    </div>
+    <button id="reset">reset</button>
+  </footer>
+
+<script>
+  const KEY = "tot-count-2026";
+  const $count = document.getElementById("count");
+  const $label = document.getElementById("label");
+
+  const load = () => { try { return parseInt(localStorage.getItem(KEY), 10) || 0; } catch { return 0; } };
+  const save = n => { try { localStorage.setItem(KEY, String(n)); } catch {} };
+
+  let n = load();
+
+  const labels = [
+    [0, "Waiting for the first ghoul… 🦇"],
+    [1, "First visitor! 🕯️"],
+    [2, "The night is young 🌙"],
+    [5, "Word is spreading… 👀"],
+    [10, "Candy is flowing 🍬"],
+    [25, "Spooky season is in full swing 🕸️"],
+    [50, "Legendary house on the block 👑"],
+    [100, "CENTURY CLUB! 💀"],
+  ];
+  const labelFor = n => labels.filter(([t]) => n >= t).pop()[1];
+
+  function render(animate) {
+    $count.textContent = n;
+    $label.textContent = labelFor(n);
+    if (animate) { $count.classList.remove("pop"); void $count.offsetWidth; $count.classList.add("pop"); }
+  }
+
+  function burst(emoji) {
+    const el = document.createElement("div");
+    el.className = "float"; el.textContent = emoji;
+    el.style.left = (30 + Math.random() * 40) + "vw"; el.style.top = "55vh";
+    document.body.appendChild(el); setTimeout(() => el.remove(), 1100);
+  }
+
+  function change(d) {
+    if (n + d < 0) return;
+    n += d; save(n); render(true);
+    if (navigator.vibrate) navigator.vibrate(d > 0 ? 25 : [15, 40, 15]);
+    if (d > 0) burst(["🎃", "👻", "🍬", "🦇", "🍫", "🕷️"][Math.floor(Math.random() * 6)]);
+  }
+
+  document.getElementById("plus").onclick = () => change(1);
+  document.getElementById("minus").onclick = () => change(-1);
+  document.getElementById("reset").onclick = () => {
+    if (confirm("Reset the count to 0?")) { n = 0; save(n); render(true); }
+  };
+
+  render(false);
+</script>
+</body>
+</html>
